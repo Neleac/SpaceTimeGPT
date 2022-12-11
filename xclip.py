@@ -22,16 +22,21 @@ video = vr.get_batch(indices)
 processor = AutoProcessor.from_pretrained("microsoft/xclip-base-patch32")
 model = AutoModel.from_pretrained("microsoft/xclip-base-patch32")
 
-inputs = processor(
-    text=["playing sports", "eating spaghetti", "go shopping", "doing gymnastics"],
-    videos=list(video),
-    return_tensors="pt",
-    padding=True,
-)
+inputs = processor(videos=list(video), return_tensors="pt")
+video_features = model.get_video_features(**inputs)
+print(video_features.shape)
+print(video_features)
 
-with torch.no_grad():
-    outputs = model(**inputs)
+# inputs = processor(
+#     text=["playing sports", "eating spaghetti", "go shopping", "doing gymnastics"],
+#     videos=list(video),
+#     return_tensors="pt",
+#     padding=True,
+# )
 
-logits_per_video = outputs.logits_per_video  # video-text similarity score
-probs = logits_per_video.softmax(dim=1)  # label probabilities
-print(probs)
+# with torch.no_grad():
+#     outputs = model(**inputs)
+
+# logits_per_video = outputs.logits_per_video  # video-text similarity score
+# probs = logits_per_video.softmax(dim=1)  # label probabilities
+# print(probs)
