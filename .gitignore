@@ -1,3 +1,5 @@
+dataset/vatex_train_videos/
+dataset/vatex_val_videos/
 dataset/vatex_test_videos/
 
 # Byte-compiled / optimized / DLL files
