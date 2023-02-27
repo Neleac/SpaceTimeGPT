@@ -1,4 +1,5 @@
 dataset/videos/
+dataset/preprocessed/
 training/
 
 # Byte-compiled / optimized / DLL files
