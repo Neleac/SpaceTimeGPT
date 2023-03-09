@@ -61,6 +61,12 @@ trainer = Seq2SeqTrainer(
 )
 
 def ray_hp_space(trial):
+    # return {
+    #     "learning_rate": tune.loguniform(1e-5, 5e-4),
+    #     "lr_scheduler_type": tune.choice(["linear", "cosine"]),
+    #     "warmup_ratio": tune.loguniform(1e-3, 1e-1),
+    #     "weight_decay": tune.loguniform(1e-4, 5e-4),
+    # }
     return {
         "learning_rate": tune.loguniform(1e-6, 1e-3),
         "lr_scheduler_type": tune.choice(["linear", "cosine"]),
@@ -72,8 +78,8 @@ best_trial = trainer.hyperparameter_search(
     resources_per_trial={"cpu": mp.cpu_count(), "gpu": torch.cuda.device_count()},
     direction="minimize",
     backend="ray",
-    search_alg=HyperOptSearch(metric="loss", mode="min"),
-    scheduler=ASHAScheduler(metric="loss", mode="min"),
+    search_alg=HyperOptSearch(metric="eval_loss", mode="min"),
+    scheduler=ASHAScheduler(metric="eval_loss", mode="min"),
     hp_space=ray_hp_space,
     n_trials=25,
 )
