@@ -1,69 +1,32 @@
-import os
+from datasets import load_from_disk
+from transformers import AutoTokenizer, TimesformerForVideoClassification
 
-import cv2
-from datasets import load_dataset
-import numpy as np
-from transformers import AutoTokenizer
-
-FRAMES_PER_VIDEO = 16
-
+model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-k600")
 tokenizer = AutoTokenizer.from_pretrained("gpt2")
 tokenizer.pad_token = tokenizer.eos_token
 
-def preprocess(example):
-    video_id = example["videoID"]
-    captions = example["enCap"]
+dataset = load_from_disk("dataset/processed/8frames_pt1")
+
+actions = set()
+for action in model.config.id2label.values():
+    if len(action.split(" ")) == 1:
+        actions.add(action)
+
+train_idxs = []
+for i, item in enumerate(dataset["train"]):
+    if i % 1000 == 0:
+        print("idx: %d, total: %d" % (i, len(train_idxs)))
     
-    videos_path = "dataset/videos"
-    video_path = os.path.join(videos_path, "%s.mp4" % video_id)
-    if not os.path.isfile(video_path):
-        video_path = os.path.join(videos_path, "%s.webm" % video_id)
-    
-    # count number of frames
-    video = cv2.VideoCapture(video_path)
-    frame_count = 0
-    while True:
-        ret, _ = video.read()
-        if not ret:
+    tokens = item["labels"]
+    caption = tokenizer.decode(tokens, skip_special_tokens=True)
+    for word in caption.split(" "):
+        if word in actions:
+            train_idxs.append(i)
             break
-        frame_count += 1
-    video.release()
-        
-    # fixed frame sampling
-    indices = np.linspace(0, frame_count, num=FRAMES_PER_VIDEO, endpoint=False).astype(np.int64)
-    # random frame sampling
-    #indices = np.sort(np.random.uniform(low=0, high=frame_count, size=self.num_frames).astype(np.int64))
-    
-    # get frames
-    video = cv2.VideoCapture(video_path)
-    frames = []
-    frame_count, frame_idx = 0, 0
-    while frame_idx < len(indices):
-        if frame_count == indices[frame_idx]:
-            _, frame = video.read()
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frames.append(frame)
-            frame_idx += 1
-        else:
-            video.grab()
-        frame_count += 1
-    video.release()
-        
-    # longest caption
-    max_len = -np.inf
-    caption = None
-    for cap in captions:
-        length = len(cap.split(" "))
-        if length > max_len:
-            max_len = length
-            caption = cap
-    # random caption
-    #caption = captions[random.randint(0, 9)]
+print(train_idxs)
 
-    labels = tokenizer(caption, padding="max_length").input_ids
-    return {"pixel_values": frames, "labels": labels}
+val_idxs = [6, 40, 41, 66, 67, 105, 118, 136, 185, 188, 193, 194, 195, 196, 197, 230, 252, 259, 262, 263, 271, 332, 338, 354, 357, 358, 393, 444, 463, 496, 519, 566, 589, 611, 631, 633, 654, 707, 709, 714, 731, 781, 782, 908, 926, 946, 947, 948, 949, 950, 1010, 1012, 1013, 1014, 1015, 1028, 1031, 1066, 1069, 1078, 1080, 1087, 1088, 1091, 1103, 1104, 1145, 1171, 1173, 1226, 1230, 1231, 1250, 1304, 1348, 1399, 1433, 1440, 1483, 1525, 1526, 1529, 1657, 1674, 1675, 1727, 1736, 1737, 1762, 1802, 1882, 1926, 1927, 1930, 1931, 1932, 1933, 1934, 1994, 2021, 2032, 2081, 2082, 2085, 2086, 2098, 2100, 2102, 2107, 2120, 2123, 2125, 2129, 2180, 2193, 2196, 2198, 2262, 2316, 2317, 2341, 2347, 2507, 2512, 2533, 2536, 2571, 2590, 2592, 2594, 2597, 2600, 2609, 2618, 2632, 2635, 2637]
 
-data_files = {"train": "dataset/vatex_train_captions.json", "validation": "dataset/vatex_val_captions.json"}
-dataset = load_dataset("json", data_files=data_files)
-dataset = dataset.map(function=preprocess, remove_columns=["enCap", "chCap"])
-dataset.save_to_disk("dataset/raw_frames_16")
+dataset["train"] = dataset["train"].select(train_idxs)
+dataset["validation"] = dataset["validation"].select(val_idxs)
+dataset.save_to_disk("dataset/processed/k600")
