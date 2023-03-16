@@ -15,5 +15,5 @@ lrs=(
 
 for lr in "${lrs[@]}"
 do
-    CUDA_VISIBLE_DEVICES=0 python train.py "$lr"
+    CUDA_VISIBLE_DEVICES=0 python train.py --learning_rate "$lr"
 done
