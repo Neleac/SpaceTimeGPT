@@ -81,7 +81,7 @@ def train(args):
         eval_dataset=dataset["validation"],
         data_collator=default_data_collator,
         compute_metrics=metrics,
-        callbacks = [EarlyStoppingCallback(early_stopping_patience=3)],
+        callbacks = [EarlyStoppingCallback(early_stopping_patience=5)],
     )
 
     trainer.train()
