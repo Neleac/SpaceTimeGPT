@@ -12,8 +12,6 @@ sys.path.append("../../transformers/src")
 from transformers import VisionEncoderDecoderModel, AutoImageProcessor, AutoTokenizer, Seq2SeqTrainer, Seq2SeqTrainingArguments, default_data_collator, EarlyStoppingCallback
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
-# if device == "cuda":
-#     torch.backends.cuda.matmul.allow_tf32 = True
 
 def train(args):
     encoder = "facebook/timesformer-base-finetuned-k600"
@@ -58,7 +56,10 @@ def train(args):
         learning_rate=args.learning_rate,
     )
 
-    metric = evaluate.load("rouge")
+    bleu_metric = evaluate.load("bleu")
+    meteor_metric = evaluate.load("meteor")
+    rouge_metric = evaluate.load("rouge")
+
     def metrics(eval_preds):
         preds, labels = eval_preds
         preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
@@ -69,8 +70,26 @@ def train(args):
                 val_output[label].append(preds[i])
             else:
                 val_output[label] = [preds[i]]
-
-        return metric.compute(predictions=preds, references=labels)
+            
+        try:
+            bleu_scores = bleu_metric.compute(predictions=preds, references=labels, smooth=True)
+            bleu = bleu_scores["bleu"]
+        except:
+            bleu = 0
+            
+        try:
+            meteor_scores = meteor_metric.compute(predictions=preds, references=labels)
+            meteor = meteor_scores["meteor"]
+        except:
+            meteor = 0
+            
+        try:
+            rouge_scores = rouge_metric.compute(predictions=preds, references=labels, rouge_types=['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+            rouge1, rouge2, rougeL = rouge_scores["rouge1"], rouge_scores["rouge2"], rouge_scores["rougeL"]
+        except:
+            rouge1, rouge2, rougeL = 0, 0, 0
+        
+        return {"bleu": bleu, "meteor": meteor, "rouge1": rouge1, "rouge2": rouge2, "rougeL": rougeL}
 
     trainer = Seq2SeqTrainer(
         train_output,
