@@ -2,7 +2,6 @@ import json
 import os
 
 from datasets import Dataset, load_from_disk
-import evaluate
 import numpy as np
 import torch
 from torch.cuda.amp import GradScaler
@@ -68,9 +67,9 @@ def val_collator(examples):
     return {"videoID": videoID, "pixel_values": pixel_values, "labels": labels}
 
 kwargs = {
-    "batch_size": 7,
+    "batch_size": 6,
     "drop_last": True,
-    "num_workers": 16,
+    "num_workers": 8,
     "pin_memory": True,
 }
 
@@ -92,8 +91,6 @@ lr_scheduler = get_scheduler(
 )
 
 # VALIDATION
-val_output = {}
-bleu = evaluate.load("bleu")
 with open("dataset/videoID_captions.json") as file:
     videoID_captions = json.load(file)
 
@@ -119,7 +116,6 @@ for epoch in range(EPOCHS):
         train_progress.update(1)
     
     model.eval()
-    seen_videos = set()
     val_progress = tqdm(range(len(val_dataloader)))
     for batch in val_dataloader:
         videoIDs = batch.pop("videoID")
@@ -127,37 +123,8 @@ for epoch in range(EPOCHS):
         with torch.no_grad():
             outputs = model(**batch)
         val_loss += outputs.loss.item()
-        
-        predictions = torch.argmax(outputs.logits, dim=-1)
-        predictions = tokenizer.batch_decode(predictions, skip_special_tokens=True)
-        labels = tokenizer.batch_decode(batch["labels"], skip_special_tokens=True)
-        
-        preds, refs = [], []
-        for videoID, prediction, label in zip(videoIDs, predictions, labels):
-            # each video appears 10 times, only log metrics and caption once
-            if videoID not in seen_videos:
-                # use for metrics
-                preds.append(prediction)
-                refs.append(videoID_captions[videoID])
-                
-                # save generated captions
-                if videoID in val_output:
-                    val_output[videoID].append(prediction)
-                else:
-                    val_output[videoID] = [prediction]
-                
-                seen_videos.add(videoID)
-        
-        if len(preds) > 0:
-            bleu.add_batch(predictions=preds, references=refs)  
         val_progress.update(1)
-                
-    bleu_scores = bleu.compute(smooth=True)
+
     writer.add_scalar("Loss/train", train_loss / len(train_dataloader), epoch)
     writer.add_scalar("Loss/val", val_loss / len(val_dataloader), epoch)
-    writer.add_scalar("Metric/bleu", bleu_scores["bleu"], epoch)
-
     model.save_pretrained(os.path.join(OUTPUT_DIR, "checkpoint_%d" % (epoch + 1))) 
-    
-    with open(os.path.join(OUTPUT_DIR, "val_output.json"), "w") as file:
-        file.write(json.dumps(val_output))

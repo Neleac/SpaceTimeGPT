@@ -14,7 +14,7 @@ def download_vatex_videos(json_path, output_path):
             start_time, end_time = video_id_tokens[-2], video_id_tokens[-1]
 
             # download video (lowest res greater than 224p, no DASH)
-            cmd = 'yt-dlp -f \"wv*[height>=224][protocol!*=dash] / bv*[protocol!*=dash]\" --download-sections \"*%s-%s\" -o \"%s\%s.%%(ext)s\" https://www.youtube.com/watch?v=%s' \
+            cmd = 'yt-dlp -f "wv*[height>=224][protocol!*=dash]/bv*[protocol!*=dash]" --download-sections "*%s-%s" -o "%s%s.%%(ext)s" "https://www.youtube.com/watch?v=%s"' \
                 % (start_time, end_time, output_path, video_id, youtube_id)
 
             try:
