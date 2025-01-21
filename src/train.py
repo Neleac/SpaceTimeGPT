@@ -49,7 +49,7 @@ class VatexDataset(Dataset):
             })
         return items
 
-dataset = load_from_disk("/data1/caelen/dataset/vatex")
+dataset = load_from_disk("../dataset/processed/vatex")
 dataset.set_format("torch")
 dataset_train = VatexDataset(dataset["train"])
 dataset_val = VatexDataset(dataset["validation"])
@@ -77,7 +77,7 @@ train_dataloader = DataLoader(dataset_train, collate_fn=default_data_collator, s
 val_dataloader = DataLoader(dataset_val, collate_fn=val_collator, **kwargs)
 
 # TRAINING
-OUTPUT_DIR = "/data1/caelen/training/vatex"
+OUTPUT_DIR = "../training/vatex"
 EPOCHS = 100
 
 scaler = GradScaler()
@@ -91,7 +91,7 @@ lr_scheduler = get_scheduler(
 )
 
 # VALIDATION
-with open("dataset/videoID_captions.json") as file:
+with open("../dataset/videoID_captions.json") as file:
     videoID_captions = json.load(file)
 
 writer = SummaryWriter(log_dir=os.path.join(OUTPUT_DIR, "runs"))
